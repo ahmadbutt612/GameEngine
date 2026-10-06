@@ -1,3 +1,4 @@
+#include <glad/glad.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #include <SFML/Window.hpp>
@@ -5,6 +6,8 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 const unsigned int screenWidth = 1280;
 const unsigned int screenHeight = 720;
@@ -16,7 +19,7 @@ struct Point
     float z;
     Point() : x(0), y(0), z(0) {}
     Point(float a, float b, float c) : x(a), y(b), z(c) {}
-    Point operator-(const Point& other) const
+    Point operator-(const Point &other) const
     {
         return Point{this->x - other.x, this->y - other.y, this->z - other.z};
     }
@@ -38,11 +41,20 @@ struct CollisionReturn
     float distance;
     sf::Color color;
 };
+struct GPUTriangle
+{
+    float p1[4];
+    float p2[4];
+    float p3[4];
+    float color[4];
+};
 class Object
 {
 public:
     virtual void move(float x, float y, float z) = 0;
     virtual CollisionReturn getMinCollisionDistance(Ray r) = 0;
+    virtual void collectTriangles(std::vector<GPUTriangle> &out) = 0;
+    virtual ~Object() {}
 };
 
 struct Triangle : public Object
@@ -77,37 +89,44 @@ struct Triangle : public Object
         Point vectorE1 = p2 - p1;
         Point vectorE2 = p3 - p1;
         Point vectorP;
-        vectorP.x = vectorD.y*vectorE2.z - vectorD.z*vectorE2.y;
-        vectorP.y = vectorD.z*vectorE2.x - vectorD.x*vectorE2.z;
-        vectorP.z = vectorD.x*vectorE2.y - vectorD.y*vectorE2.x;
-        float det = vectorE1.x*vectorP.x + vectorE1.y*vectorP.y + vectorE1.z*vectorP.z;
+        vectorP.x = vectorD.y * vectorE2.z - vectorD.z * vectorE2.y;
+        vectorP.y = vectorD.z * vectorE2.x - vectorD.x * vectorE2.z;
+        vectorP.z = vectorD.x * vectorE2.y - vectorD.y * vectorE2.x;
+        float det = vectorE1.x * vectorP.x + vectorE1.y * vectorP.y + vectorE1.z * vectorP.z;
         if (abs(det) < 0.000001)
         {
-            cr.distance = r.length*2;
+            cr.distance = r.length * 2;
             cr.color = sf::Color::Black;
             return cr;
         }
         Point T = r.origin - p1;
-        float u = (T.x*vectorP.x + T.y*vectorP.y + T.z*vectorP.z) / det;
+        float u = (T.x * vectorP.x + T.y * vectorP.y + T.z * vectorP.z) / det;
         if (u < 0 || u > 1)
         {
-            cr.distance = r.length*2;
+            cr.distance = r.length * 2;
             cr.color = sf::Color::Black;
             return cr;
         }
         Point vectorQ;
-        vectorQ.x = T.y*vectorE1.z - T.z*vectorE1.y;
-        vectorQ.y = T.z*vectorE1.x - T.x*vectorE1.z;
-        vectorQ.z = T.x*vectorE1.y - T.y*vectorE1.x;
-        float v = (vectorD.x*vectorQ.x + vectorD.y*vectorQ.y + vectorD.z*vectorQ.z) / det;
-        if (v<0 || u+v>1)
+        vectorQ.x = T.y * vectorE1.z - T.z * vectorE1.y;
+        vectorQ.y = T.z * vectorE1.x - T.x * vectorE1.z;
+        vectorQ.z = T.x * vectorE1.y - T.y * vectorE1.x;
+        float v = (vectorD.x * vectorQ.x + vectorD.y * vectorQ.y + vectorD.z * vectorQ.z) / det;
+        if (v < 0 || u + v > 1)
         {
-            cr.distance = r.length*2;
+            cr.distance = r.length * 2;
             cr.color = sf::Color::Black;
             return cr;
         }
-        cr.distance = (vectorE2.x*vectorQ.x + vectorE2.y*vectorQ.y + vectorE2.z*vectorQ.z) / det;
+        cr.distance = (vectorE2.x * vectorQ.x + vectorE2.y * vectorQ.y + vectorE2.z * vectorQ.z) / det;
         return cr;
+    }
+    void collectTriangles(std::vector<GPUTriangle> &out) override
+    {
+        out.push_back({{p1.x, p1.y, p1.z, 0.f},
+                       {p2.x, p2.y, p2.z, 0.f},
+                       {p3.x, p3.y, p3.z, 0.f},
+                       {color.r / 255.f, color.g / 255.f, color.b / 255.f, 1.f}});
     }
 };
 
@@ -115,6 +134,7 @@ class GroupedObject : public Object
 {
 private:
     std::vector<Object *> arr;
+
 public:
     void addObject(Object *obj)
     {
@@ -131,16 +151,23 @@ public:
     {
         CollisionReturn minimum;
         minimum.color = sf::Color::Black;
-        minimum.distance = r.length*2;
-        for (int i = 0; i< arr.size(); ++i)
+        minimum.distance = r.length * 2;
+        for (int i = 0; i < arr.size(); ++i)
         {
-            CollisionReturn val = arr[i] -> getMinCollisionDistance(r);
+            CollisionReturn val = arr[i]->getMinCollisionDistance(r);
             if (val.distance < minimum.distance)
             {
                 minimum = val;
             }
         }
         return minimum;
+    }
+    void collectTriangles(std::vector<GPUTriangle> &out) override
+    {
+        for (int i = 0; i < arr.size(); ++i)
+        {
+            arr[i]->collectTriangles(out);
+        }
     }
     ~GroupedObject()
     {
@@ -161,6 +188,7 @@ private:
     Ray bottomLeft;
     Ray bottomRight;
     float viewDistance;
+
 public:
     Camera()
     {
@@ -186,6 +214,10 @@ public:
         if (d < 1)
             d = 1;
         viewDistance = d;
+        topLeft.length = viewDistance;
+        topRight.length = viewDistance;
+        bottomLeft.length = viewDistance;
+        bottomRight.length = viewDistance;
     }
     void setTopLeft(float t, float f)
     {
@@ -245,13 +277,39 @@ int getPixelIndex(int x, int y)
     return y * screenWidth + x;
 }
 
-
-
-
-
-
-
-
+std::string loadFile(const char *path)
+{
+    std::ifstream f(path);
+    if (!f)
+    {
+        std::cerr << "Cannot open " << path << "\n";
+        return "";
+    }
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+GLuint makeComputeProgram(const char *path)
+{
+    std::string src = loadFile(path);
+    const char *c = src.c_str();
+    GLuint sh = glCreateShader(GL_COMPUTE_SHADER);
+    glShaderSource(sh, 1, &c, nullptr);
+    glCompileShader(sh);
+    GLint ok;
+    glGetShaderiv(sh, GL_COMPILE_STATUS, &ok);
+    if (!ok)
+    {
+        char log[4096];
+        glGetShaderInfoLog(sh, 4096, nullptr, log);
+        std::cerr << log << "\n";
+    }
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, sh);
+    glLinkProgram(prog);
+    glDeleteShader(sh);
+    return prog;
+}
 
 // Flat quad = 2 triangles
 static void addQuad(GroupedObject *g, Point a, Point b, Point c, Point d, sf::Color col)
@@ -293,18 +351,18 @@ static void addCone(GroupedObject *g, float cx, float cy, float cz, float r,
 
 // ---------- scene ----------
 
-GroupedObject *buildScene()
+GroupedObject *initWorld()
 {
     GroupedObject *allObjects = new GroupedObject();
 
-    // 0) Your original object (x 10-20, y 10-20)
-    GroupedObject *obj1 = new GroupedObject();
-    obj1->addObject(new Triangle(Point(10, 10, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Red));
-    obj1->addObject(new Triangle(Point(20, 20, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Blue));
-    GroupedObject *obj2 = new GroupedObject();
-    obj2->addObject(obj1);
-    obj2->addObject(new Triangle(Point(10, 10, 15), Point(10, 20, 15), Point(20, 10, 15), sf::Color::Yellow));
-    allObjects->addObject(obj2);
+    // // 0) Your original object (x 10-20, y 10-20)
+    // GroupedObject *obj1 = new GroupedObject();
+    // obj1->addObject(new Triangle(Point(10, 10, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Red));
+    // obj1->addObject(new Triangle(Point(20, 20, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Blue));
+    // GroupedObject *allObjects = new GroupedObject();
+    // allObjects->addObject(obj1);
+    // allObjects->addObject(new Triangle(Point(10, 10, 15), Point(10, 20, 15), Point(20, 10, 15), sf::Color::Yellow));
+    // allObjects->addObject(allObjects);
 
     // 1) Cube (x 30-36, y 10-16, z 10-16)
     GroupedObject *cube = new GroupedObject();
@@ -385,13 +443,14 @@ GroupedObject *buildScene()
     return allObjects;
 }
 
-GroupedObject* getRectangle(Point origin, float length, float width);
-GroupedObject* initWorld();
+GroupedObject *getRectangle(Point origin, float length, float width);
+//GroupedObject *initWorld();
 
 int main()
 {
     sf::ContextSettings contextSettings;
-    contextSettings.depthBits = 24;
+    contextSettings.majorVersion = 4;
+    contextSettings.minorVersion = 3;
 
     sf::RenderWindow window(
         sf::VideoMode({screenWidth, screenHeight}),
@@ -406,34 +465,56 @@ int main()
         std::cerr << "Failed to activate window OpenGL context!" << std::endl;
         return 1;
     }
-
-    sf::VertexArray points(sf::PrimitiveType::Points, screenWidth * screenHeight);
-    for (int i = 0; i < screenHeight; ++i)
+    if (!gladLoadGLLoader((GLADloadproc)sf::Context::getFunction))
     {
-        for (int j = 0; j < screenWidth; ++j)
-        {
-            points[i * screenWidth + j].position.x = j;
-            points[i * screenWidth + j].position.y = i;
-            points[i * screenWidth + j].color = sf::Color::Black;
-        }
+        std::cerr << "Failed to load OpenGL functions\n";
+        return 1;
     }
 
+    if (!gladLoadGL())
+    {
+        std::cerr << "Failed to initialize GLAD!" << std::endl;
+        return 1;
+    }
+    sf::Texture texture(sf::Vector2u(screenWidth, screenHeight));
+    sf::Sprite sprite(texture);
+    GLuint program = makeComputeProgram("raytrace.comp");
+
+    // sf::VertexArray points(sf::PrimitiveType::Points, screenWidth * screenHeight);
+    // for (int i = 0; i < screenHeight; ++i)
+    // {
+    //     for (int j = 0; j < screenWidth; ++j)
+    //     {
+    //         points[i * screenWidth + j].position.x = j;
+    //         points[i * screenWidth + j].position.y = i;
+    //         points[i * screenWidth + j].color = sf::Color::Black;
+    //     }
+    // }
+
     Camera camera;
-    camera.setPosition(0, 0, 0);
+    camera.setPosition(0, 0, 5);
     camera.setViewDistance(100);
     camera.setTopLeft(82, 50);
     camera.setTopRight(1, 50);
-    camera.setBottomLeft(82, 90);
-    camera.setBottomRight(1, 90);
+    camera.setBottomLeft(82, 100);
+    camera.setBottomRight(1, 100);
 
-    // GroupedObject *obj1 = new GroupedObject();
-    // obj1->addObject(new Triangle(Point(10, 10, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Red));
-    // obj1->addObject(new Triangle(Point(20, 20, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Blue));
-    // GroupedObject *obj2 = new GroupedObject();
-    // obj2->addObject(obj1);
-    // obj2->addObject(new Triangle(Point(10, 10, 15), Point(10, 20, 15), Point(20, 10, 15), sf::Color::Yellow));
+    GroupedObject *objects = initWorld();
+    std::vector<GPUTriangle> tris;
+    objects->collectTriangles(tris);
 
-    GroupedObject* objects = buildScene();
+    GLuint ssbo;
+    glGenBuffers(1, &ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, tris.size() * sizeof(GPUTriangle), tris.data(), GL_STATIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+
+    GLint locTriCount = glGetUniformLocation(program, "triCount");
+    GLint locCamPos   = glGetUniformLocation(program, "camPos");
+    GLint locStart    = glGetUniformLocation(program, "startAngle");
+    GLint locStep     = glGetUniformLocation(program, "angleStep");
+    GLint locLen      = glGetUniformLocation(program, "rayLength");
+
     int frameCount = 0;
     while (window.isOpen())
     {
@@ -445,30 +526,47 @@ int main()
             }
         }
         Ray start = camera.getTopRight();
-        float thetaOffset = (camera.getTopLeft().angle.theta - camera.getTopRight().angle.theta)/screenWidth;
-        float fiOffset = (camera.getBottomLeft().angle.fi - camera.getTopLeft().angle.fi)/screenHeight;
-        for (int i = 0; i < screenHeight; ++i)
-        {  
-            for (int j = 0; j < screenWidth; ++j)
-            {
-                CollisionReturn ret = objects->getMinCollisionDistance(start);
-                points[i * screenWidth + j].color = ret.color;
-                start.angle.theta = start.angle.theta + thetaOffset;
-            }
-            start.angle.fi = start.angle.fi + fiOffset;
-            start.angle.theta = camera.getTopRight().angle.theta;
-        }
+        float thetaOffset = (camera.getTopLeft().angle.theta - camera.getTopRight().angle.theta) / screenWidth;
+        float fiOffset = (camera.getBottomLeft().angle.fi - camera.getTopLeft().angle.fi) / screenHeight;
+        Point cp = camera.getPosition();
+        glUseProgram(program);
+        glUniform1i(locTriCount, (GLint)tris.size());
+        glUniform3f(locCamPos, cp.x, cp.y, cp.z);
+        glUniform2f(locStart, start.angle.theta, start.angle.fi);
+        glUniform2f(locStep, thetaOffset, fiOffset);
+        glUniform1f(locLen, start.length);
+
+        glBindImageTexture(0, texture.getNativeHandle(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
+        glDispatchCompute((screenWidth + 15) / 16, (screenHeight + 15) / 16, 1);
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
+        glUseProgram(0);
+        // for (int i = 0; i < screenHeight; ++i)
+        // {
+        //     for (int j = 0; j < screenWidth; ++j)
+        //     {
+        //         CollisionReturn ret = objects->getMinCollisionDistance(start);
+        //         points[i * screenWidth + j].color = ret.color;
+        //         start.angle.theta = start.angle.theta + thetaOffset;
+        //     }
+        //     start.angle.fi = start.angle.fi + fiOffset;
+        //     start.angle.theta = camera.getTopRight().angle.theta;
+        // }
         camera.changeDirection(1.f, 0);
-        camera.setPosition(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z+0.1);
-        
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        window.draw(points);
+        //camera.setPosition(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z + 0.1);
+
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // window.draw(points);
+        // window.display();
+        window.resetGLStates();   // SFML caches GL state, so tell it we touched it
+        window.clear();
+        window.draw(sprite);
         window.display();
-       std::cout << ++frameCount << std::endl;
+        std::cout << ++frameCount << std::endl;
     }
 
     delete objects;
-
+    glDeleteBuffers(1, &ssbo);
+    glDeleteProgram(program);
     return 0;
 }
 
@@ -481,6 +579,15 @@ int main()
 
 // GroupedObject *initWorld()
 // {
-//     GroupedObject allObjects;
-//     allObjects.addObject();
+//     GroupedObject *obj1 = new GroupedObject();
+//     obj1->addObject(new Triangle(Point(10, 10, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Red));
+//     obj1->addObject(new Triangle(Point(20, 20, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Blue));
+//     GroupedObject *floor = new GroupedObject();
+//     floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(100, 0, 0), sf::Color::White));
+//     floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(0, 100, 0), sf::Color::White));
+//     GroupedObject *allObjects = new GroupedObject();
+//     allObjects->addObject(obj1);
+//     allObjects->addObject(new Triangle(Point(10, 10, 15), Point(10, 20, 15), Point(20, 10, 15), sf::Color::Yellow));
+//     allObjects->addObject(floor);
+//     return allObjects;
 // }
