@@ -6,48 +6,13 @@
 #include "Camera.h"
 #include "Triangle.h"
 #include "GroupedObject.h"
+#include "CameraRenderer.h"
 #include <cmath>
 #include <iostream>
 #include <vector>
-#include <fstream>
-#include <sstream>
 
 const unsigned int screenWidth = 1280;
 const unsigned int screenHeight = 720;
-
-std::string loadFile(const char *path)
-{
-    std::ifstream f(path);
-    if (!f)
-    {
-        std::cerr << "Cannot open " << path << "\n";
-        return "";
-    }
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
-}
-GLuint makeComputeProgram(const char *path)
-{
-    std::string src = loadFile(path);
-    const char *c = src.c_str();
-    GLuint sh = glCreateShader(GL_COMPUTE_SHADER);
-    glShaderSource(sh, 1, &c, nullptr);
-    glCompileShader(sh);
-    GLint ok;
-    glGetShaderiv(sh, GL_COMPILE_STATUS, &ok);
-    if (!ok)
-    {
-        char log[4096];
-        glGetShaderInfoLog(sh, 4096, nullptr, log);
-        std::cerr << log << "\n";
-    }
-    GLuint prog = glCreateProgram();
-    glAttachShader(prog, sh);
-    glLinkProgram(prog);
-    glDeleteShader(sh);
-    return prog;
-}
 
 // Flat quad = 2 triangles
 static void addQuad(GroupedObject *g, Point a, Point b, Point c, Point d, sf::Color col)
@@ -206,15 +171,8 @@ int main()
         std::cerr << "Failed to load OpenGL functions\n";
         return 1;
     }
-
-    if (!gladLoadGL())
-    {
-        std::cerr << "Failed to initialize GLAD!" << std::endl;
-        return 1;
-    }
-    sf::Texture texture(sf::Vector2u(screenWidth, screenHeight));
-    sf::Sprite sprite(texture);
-    GLuint program = makeComputeProgram("raytrace.comp");
+    CameraRenderer renderer(screenWidth, screenHeight, "raytrace.comp");
+    sf::Sprite sprite(renderer.getTexture());
 
     // sf::VertexArray points(sf::PrimitiveType::Points, screenWidth * screenHeight);
     // for (int i = 0; i < screenHeight; ++i)
@@ -240,21 +198,6 @@ int main()
     floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(100, 0, 0), sf::Color::White));
     floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(0, 100, 0), sf::Color::White));
     objects->addObject(floor);
-    std::vector<GPUTriangle> tris;
-    objects->collectTriangles(tris);
-
-    GLuint ssbo;
-    glGenBuffers(1, &ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, tris.size() * sizeof(GPUTriangle), tris.data(), GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
-    size_t gpuCapacity = tris.size();
-
-    GLint locTriCount = glGetUniformLocation(program, "triCount");
-    GLint locCamPos = glGetUniformLocation(program, "camPos");
-    GLint locStart = glGetUniformLocation(program, "startAngle");
-    GLint locStep = glGetUniformLocation(program, "angleStep");
-    GLint locLen = glGetUniformLocation(program, "rayLength");
 
     int frameCount = 0;
     const float movementSpeed = 1.f;
@@ -280,7 +223,6 @@ int main()
             {
                 if (mouseButton->button == sf::Mouse::Button::Left)
                 {
-                    
                 }
             }
         }
@@ -300,37 +242,8 @@ int main()
         {
             camera.relMove(Move::Backward, movementSpeed);
         }
-        Ray start = camera.getTopLeft();
-        float thetaOffset = (camera.getTopRight().angle.theta - camera.getTopLeft().angle.theta) / screenWidth;
-        float fiOffset = (camera.getBottomLeft().angle.fi - camera.getTopLeft().angle.fi) / screenHeight;
 
-        tris.clear();
-        objects->collectTriangles(tris);
-        // 3. Upload it
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-        if (tris.size() > gpuCapacity)
-        {
-            // scene grew: reallocate
-            glBufferData(GL_SHADER_STORAGE_BUFFER, tris.size() * sizeof(GPUTriangle), tris.data(), GL_DYNAMIC_DRAW);
-            gpuCapacity = tris.size();
-        }
-        else
-        {
-            // same size or smaller: overwrite in place
-            glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, tris.size() * sizeof(GPUTriangle), tris.data());
-        }
-        Point cp = camera.getPosition();
-        glUseProgram(program);
-        glUniform1i(locTriCount, (GLint)tris.size());
-        glUniform3f(locCamPos, cp.x, cp.y, cp.z);
-        glUniform2f(locStart, start.angle.theta, start.angle.fi);
-        glUniform2f(locStep, thetaOffset, fiOffset);
-        glUniform1f(locLen, start.length);
-
-        glBindImageTexture(0, texture.getNativeHandle(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
-        glDispatchCompute((screenWidth + 15) / 16, (screenHeight + 15) / 16, 1);
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
-        glUseProgram(0);
+        renderer.render(*objects, camera);
         // for (int i = 0; i < screenHeight; ++i)
         // {
         //     for (int j = 0; j < screenWidth; ++j)
@@ -350,7 +263,7 @@ int main()
         sf::Mouse::setPosition(sf::Vector2i(window.getSize().x / 2, window.getSize().y / 2), window);
         oldMousePos = sf::Vector2i(screenWidth / 2, screenHeight / 2);
 
-        //objects->move(0.2, 0.2, 0);
+        // objects->move(0.2, 0.2, 0);
 
         window.resetGLStates(); // SFML caches GL state, so tell it we touched it
         window.clear();
@@ -360,7 +273,5 @@ int main()
     }
 
     delete objects;
-    glDeleteBuffers(1, &ssbo);
-    glDeleteProgram(program);
     return 0;
 }
