@@ -9,20 +9,21 @@
 class CameraRenderer
 {
 public:
-    CameraRenderer(unsigned int width, unsigned int height, const char *shaderPath);
+    CameraRenderer(sf::Vector2u position, sf::Vector2u viewSize, const char *shaderPath);
     ~CameraRenderer();
-    CameraRenderer(const CameraRenderer &) = delete;            // owns GL handles, so no copying
+    CameraRenderer(const CameraRenderer &) = delete;
     CameraRenderer &operator=(const CameraRenderer &) = delete;
 
+    void setViewport(sf::Vector2u position, sf::Vector2u viewSize);
     void render(GroupedObject &scene, Camera &camera);
-    const sf::Texture &getTexture() const { return texture; }
+    void draw(sf::RenderTarget &target) { target.draw(sprite); }
 
 private:
     void uploadScene(GroupedObject &scene);
 
-    unsigned int width;
-    unsigned int height;
+    sf::Vector2u size;      // declared before texture and sprite on purpose
     sf::Texture texture;
+    sf::Sprite sprite;
     GLuint program = 0;
     GLuint ssbo = 0;
     size_t gpuCapacity = 0;

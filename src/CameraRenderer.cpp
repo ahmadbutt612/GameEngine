@@ -29,7 +29,8 @@ static GLuint makeComputeProgram(const char *path)
     {
         char log[4096];
         glGetShaderInfoLog(sh, 4096, nullptr, log);
-        std::cerr << "Shader compile error:\n" << log << "\n";
+        std::cerr << "Shader compile error:\n"
+                  << log << "\n";
     }
     GLuint prog = glCreateProgram();
     glAttachShader(prog, sh);
@@ -39,15 +40,18 @@ static GLuint makeComputeProgram(const char *path)
     {
         char log[4096];
         glGetProgramInfoLog(prog, 4096, nullptr, log);
-        std::cerr << "Program link error:\n" << log << "\n";
+        std::cerr << "Program link error:\n"
+                  << log << "\n";
     }
     glDeleteShader(sh);
     return prog;
 }
 
-CameraRenderer::CameraRenderer(unsigned int w, unsigned int h, const char *shaderPath)
-    : width(w), height(h), texture(sf::Vector2u(w, h))
+CameraRenderer::CameraRenderer(sf::Vector2u position, sf::Vector2u viewSize, const char *shaderPath)
+    : size(viewSize), texture(viewSize), sprite(texture)
 {
+    sprite.setPosition(sf::Vector2f(position));
+
     program = makeComputeProgram(shaderPath);
     glGenBuffers(1, &ssbo);
 
@@ -85,13 +89,28 @@ void CameraRenderer::uploadScene(GroupedObject &scene)
     }
 }
 
+void CameraRenderer::setViewport(sf::Vector2u position, sf::Vector2u viewSize)
+{
+    if (viewSize != size)
+    {
+        if (!texture.resize(viewSize))
+        {
+            std::cerr << "Failed to resize render texture\n";
+            return;
+        }
+        size = viewSize;
+        sprite.setTextureRect(sf::IntRect({0, 0}, sf::Vector2i(size)));
+    }
+    sprite.setPosition(sf::Vector2f(position));
+}
+
 void CameraRenderer::render(GroupedObject &scene, Camera &camera)
 {
     uploadScene(scene);
 
     Ray start = camera.getTopLeft();
-    float thetaOffset = (camera.getTopRight().angle.theta - camera.getTopLeft().angle.theta) / width;
-    float fiOffset = (camera.getBottomLeft().angle.fi - camera.getTopLeft().angle.fi) / height;
+    float thetaOffset = (camera.getTopRight().angle.theta - camera.getTopLeft().angle.theta) / size.x;
+    float fiOffset = (camera.getBottomLeft().angle.fi - camera.getTopLeft().angle.fi) / size.y;
     Point cp = camera.getPosition();
 
     glUseProgram(program);
@@ -103,7 +122,7 @@ void CameraRenderer::render(GroupedObject &scene, Camera &camera)
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
     glBindImageTexture(0, texture.getNativeHandle(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
-    glDispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
+    glDispatchCompute((size.x + 15) / 16, (size.y + 15) / 16, 1);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
     glUseProgram(0);
 }

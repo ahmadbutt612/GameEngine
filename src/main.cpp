@@ -171,9 +171,8 @@ int main()
         std::cerr << "Failed to load OpenGL functions\n";
         return 1;
     }
-    CameraRenderer renderer(screenWidth, screenHeight, "raytrace.comp");
-    sf::Sprite sprite(renderer.getTexture());
-
+    CameraRenderer renderer(sf::Vector2u(0, 0), sf::Vector2u(screenWidth/2, screenHeight), "raytrace.comp");
+    CameraRenderer renderer2(sf::Vector2u(screenWidth/2, 0), sf::Vector2u(screenWidth/2, screenHeight), "raytrace.comp");
     // sf::VertexArray points(sf::PrimitiveType::Points, screenWidth * screenHeight);
     // for (int i = 0; i < screenHeight; ++i)
     // {
@@ -192,6 +191,13 @@ int main()
     camera.setTopRight(32, 70);
     camera.setBottomLeft(102, 100);
     camera.setBottomRight(32, 100);
+    Camera camera2;
+    camera2.setPosition(2, 2, 5);
+    camera2.setViewDistance(300);
+    camera2.setTopLeft(102, 70);
+    camera2.setTopRight(32, 70);
+    camera2.setBottomLeft(102, 100);
+    camera2.setBottomRight(32, 100);
 
     GroupedObject *objects = initWorld();
     GroupedObject *floor = new GroupedObject();
@@ -244,6 +250,7 @@ int main()
         }
 
         renderer.render(*objects, camera);
+        renderer2.render(*objects, camera2);
         // for (int i = 0; i < screenHeight; ++i)
         // {
         //     for (int j = 0; j < screenWidth; ++j)
@@ -263,11 +270,12 @@ int main()
         sf::Mouse::setPosition(sf::Vector2i(window.getSize().x / 2, window.getSize().y / 2), window);
         oldMousePos = sf::Vector2i(screenWidth / 2, screenHeight / 2);
 
-        // objects->move(0.2, 0.2, 0);
+        //objects->move(0.2, 0.2, 0);
 
         window.resetGLStates(); // SFML caches GL state, so tell it we touched it
         window.clear();
-        window.draw(sprite);
+        renderer.draw(window);
+        renderer2.draw(window);
         window.display();
         std::cout << ++frameCount << std::endl;
     }
