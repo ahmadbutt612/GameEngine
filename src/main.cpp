@@ -3,6 +3,8 @@
 #include <SFML/OpenGL.hpp>
 #include <SFML/Window.hpp>
 #include <SFML/System.hpp>
+#include "types.h"
+#include "Camera.h"
 #include <vector>
 #include <cmath>
 #include <iostream>
@@ -12,42 +14,6 @@
 const unsigned int screenWidth = 1280;
 const unsigned int screenHeight = 720;
 
-struct Point
-{
-    float x;
-    float y;
-    float z;
-    Point() : x(0), y(0), z(0) {}
-    Point(float a, float b, float c) : x(a), y(b), z(c) {}
-    Point operator-(const Point &other) const
-    {
-        return Point{this->x - other.x, this->y - other.y, this->z - other.z};
-    }
-};
-struct Angle
-{
-    float theta;
-    float fi;
-};
-struct Ray
-{
-    Point origin;
-    Angle angle;
-    float length;
-};
-
-struct CollisionReturn
-{
-    float distance;
-    sf::Color color;
-};
-struct GPUTriangle
-{
-    float p1[4];
-    float p2[4];
-    float p3[4];
-    float color[4];
-};
 class Object
 {
 public:
@@ -134,7 +100,6 @@ class GroupedObject : public Object
 {
 private:
     std::vector<Object *> arr;
-
 public:
     void addObject(Object *obj)
     {
@@ -176,99 +141,6 @@ public:
             delete arr[i];
         }
         arr.clear();
-    }
-};
-
-class Camera
-{
-private:
-    Point position;
-    Ray topLeft;
-    Ray topRight;
-    Ray bottomLeft;
-    Ray bottomRight;
-    float viewDistance;
-
-public:
-    Camera()
-    {
-        viewDistance = 50;
-        position = Point(0, 0, 0);
-        topLeft = Ray(position, Angle(0, 0), viewDistance);
-        topRight = Ray(position, Angle(0, 0), viewDistance);
-        bottomLeft = Ray(position, Angle(0, 0), viewDistance);
-        bottomRight = Ray(position, Angle(0, 0), viewDistance);
-    }
-    void setPosition(float a, float b, float c)
-    {
-        position.x = a;
-        position.y = b;
-        position.z = c;
-        topLeft.origin = Point(a, b, c);
-        topRight.origin = Point(a, b, c);
-        bottomLeft.origin = Point(a, b, c);
-        bottomRight.origin = Point(a, b, c);
-    }
-    void setViewDistance(float d)
-    {
-        if (d < 1)
-            d = 1;
-        viewDistance = d;
-        topLeft.length = viewDistance;
-        topRight.length = viewDistance;
-        bottomLeft.length = viewDistance;
-        bottomRight.length = viewDistance;
-    }
-    void setTopLeft(float t, float f)
-    {
-        topLeft.angle.theta = t;
-        topLeft.angle.fi = f;
-    }
-    void setTopRight(float t, float f)
-    {
-        topRight.angle.theta = t;
-        topRight.angle.fi = f;
-    }
-    void setBottomLeft(float t, float f)
-    {
-        bottomLeft.angle.theta = t;
-        bottomLeft.angle.fi = f;
-    }
-    void setBottomRight(float t, float f)
-    {
-        bottomRight.angle.theta = t;
-        bottomRight.angle.fi = f;
-    }
-    Point getPosition()
-    {
-        return position;
-    }
-    Ray getBottomLeft()
-    {
-        return bottomLeft;
-    }
-    Ray getBottomRight()
-    {
-        return bottomRight;
-    }
-    Ray getTopRight()
-    {
-        return topRight;
-    }
-    Ray getTopLeft()
-    {
-        return topLeft;
-    }
-    void changeDirection(float thetaOffset, float fiOffset)
-    {
-        topRight.angle.theta = topRight.angle.theta + thetaOffset;
-        topLeft.angle.theta = topLeft.angle.theta + thetaOffset;
-        bottomRight.angle.theta = bottomRight.angle.theta + thetaOffset;
-        bottomLeft.angle.theta = bottomLeft.angle.theta + thetaOffset;
-        topRight.angle.fi = topRight.angle.fi + fiOffset;
-        topLeft.angle.fi = topLeft.angle.fi + fiOffset;
-        bottomRight.angle.fi = bottomRight.angle.fi + fiOffset;
-        bottomLeft.angle.fi = bottomLeft.angle.fi + fiOffset;
     }
 };
 
@@ -325,12 +197,12 @@ static void addBox(GroupedObject *g,
                    sf::Color front, sf::Color back, sf::Color left,
                    sf::Color right, sf::Color top, sf::Color bottom)
 {
-    addQuad(g, Point(x0,y0,z0), Point(x1,y0,z0), Point(x1,y1,z0), Point(x0,y1,z0), front);
-    addQuad(g, Point(x0,y0,z1), Point(x1,y0,z1), Point(x1,y1,z1), Point(x0,y1,z1), back);
-    addQuad(g, Point(x0,y0,z0), Point(x0,y0,z1), Point(x0,y1,z1), Point(x0,y1,z0), left);
-    addQuad(g, Point(x1,y0,z0), Point(x1,y0,z1), Point(x1,y1,z1), Point(x1,y1,z0), right);
-    addQuad(g, Point(x0,y0,z0), Point(x1,y0,z0), Point(x1,y0,z1), Point(x0,y0,z1), top);
-    addQuad(g, Point(x0,y1,z0), Point(x1,y1,z0), Point(x1,y1,z1), Point(x0,y1,z1), bottom);
+    addQuad(g, Point(x0, y0, z0), Point(x1, y0, z0), Point(x1, y1, z0), Point(x0, y1, z0), front);
+    addQuad(g, Point(x0, y0, z1), Point(x1, y0, z1), Point(x1, y1, z1), Point(x0, y1, z1), back);
+    addQuad(g, Point(x0, y0, z0), Point(x0, y0, z1), Point(x0, y1, z1), Point(x0, y1, z0), left);
+    addQuad(g, Point(x1, y0, z0), Point(x1, y0, z1), Point(x1, y1, z1), Point(x1, y1, z0), right);
+    addQuad(g, Point(x0, y0, z0), Point(x1, y0, z0), Point(x1, y0, z1), Point(x0, y0, z1), top);
+    addQuad(g, Point(x0, y1, z0), Point(x1, y1, z0), Point(x1, y1, z1), Point(x0, y1, z1), bottom);
 }
 
 // Cone as a triangle fan (side triangles alternate between two colors)
@@ -405,18 +277,18 @@ GroupedObject *initWorld()
     {
         sf::Color wall(220, 200, 160), wallSide(190, 170, 130), roof(170, 50, 50);
         // walls
-        addQuad(house, Point(10,34,10), Point(18,34,10), Point(18,40,10), Point(10,40,10), wall);      // front
-        addQuad(house, Point(10,34,16), Point(18,34,16), Point(18,40,16), Point(10,40,16), wall);      // back
-        addQuad(house, Point(10,34,10), Point(10,34,16), Point(10,40,16), Point(10,40,10), wallSide);  // left
-        addQuad(house, Point(18,34,10), Point(18,34,16), Point(18,40,16), Point(18,40,10), wallSide);  // right
+        addQuad(house, Point(10, 34, 10), Point(18, 34, 10), Point(18, 40, 10), Point(10, 40, 10), wall);     // front
+        addQuad(house, Point(10, 34, 16), Point(18, 34, 16), Point(18, 40, 16), Point(10, 40, 16), wall);     // back
+        addQuad(house, Point(10, 34, 10), Point(10, 34, 16), Point(10, 40, 16), Point(10, 40, 10), wallSide); // left
+        addQuad(house, Point(18, 34, 10), Point(18, 34, 16), Point(18, 40, 16), Point(18, 40, 10), wallSide); // right
         // gables
-        house->addObject(new Triangle(Point(10,34,10), Point(18,34,10), Point(14,29,10), wall));
-        house->addObject(new Triangle(Point(10,34,16), Point(18,34,16), Point(14,29,16), wall));
+        house->addObject(new Triangle(Point(10, 34, 10), Point(18, 34, 10), Point(14, 29, 10), wall));
+        house->addObject(new Triangle(Point(10, 34, 16), Point(18, 34, 16), Point(14, 29, 16), wall));
         // roof slopes
-        addQuad(house, Point(10,34,10), Point(14,29,10), Point(14,29,16), Point(10,34,16), roof);
-        addQuad(house, Point(18,34,10), Point(14,29,10), Point(14,29,16), Point(18,34,16), sf::Color(140, 40, 40));
+        addQuad(house, Point(10, 34, 10), Point(14, 29, 10), Point(14, 29, 16), Point(10, 34, 16), roof);
+        addQuad(house, Point(18, 34, 10), Point(14, 29, 10), Point(14, 29, 16), Point(18, 34, 16), sf::Color(140, 40, 40));
         // door (slightly in front of the wall to avoid z-fighting)
-        addQuad(house, Point(13,36,9.9f), Point(15,36,9.9f), Point(15,40,9.9f), Point(13,40,9.9f), sf::Color(90, 55, 30));
+        addQuad(house, Point(13, 36, 9.9f), Point(15, 36, 9.9f), Point(15, 40, 9.9f), Point(13, 40, 9.9f), sf::Color(90, 55, 30));
     }
     allObjects->addObject(house);
 
@@ -436,7 +308,7 @@ GroupedObject *initWorld()
         float x0 = 50 + 3 * i, x1 = x0 + 3;
         float y0 = 40 - 2 * (i + 1), y1 = 40;
         sf::Color c = (i % 2 == 0) ? sf::Color(180, 180, 190) : sf::Color(140, 140, 160);
-        addBox(stairs, x0, y0, 10, x1, y1, 15, c, c, sf::Color(110,110,130), sf::Color(110,110,130), sf::Color::White, c);
+        addBox(stairs, x0, y0, 10, x1, y1, 15, c, c, sf::Color(110, 110, 130), sf::Color(110, 110, 130), sf::Color::White, c);
     }
     allObjects->addObject(stairs);
 
@@ -444,7 +316,7 @@ GroupedObject *initWorld()
 }
 
 GroupedObject *getRectangle(Point origin, float length, float width);
-//GroupedObject *initWorld();
+// GroupedObject *initWorld();
 
 int main()
 {
@@ -459,6 +331,7 @@ int main()
         sf::State::Windowed,
         contextSettings);
     window.setVerticalSyncEnabled(true);
+    window.setMouseCursorVisible(false);
 
     if (!window.setActive(true))
     {
@@ -493,29 +366,38 @@ int main()
 
     Camera camera;
     camera.setPosition(0, 0, 5);
-    camera.setViewDistance(100);
-    camera.setTopLeft(82, 50);
-    camera.setTopRight(1, 50);
-    camera.setBottomLeft(82, 100);
-    camera.setBottomRight(1, 100);
+    camera.setViewDistance(300);
+    camera.setTopLeft(92, 50);
+    camera.setTopRight(12, 50);
+    camera.setBottomLeft(92, 100);
+    camera.setBottomRight(12, 100);
 
     GroupedObject *objects = initWorld();
+    GroupedObject *floor = new GroupedObject();
+    floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(100, 0, 0), sf::Color::White));
+    floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(0, 100, 0), sf::Color::White));
+    objects->addObject(floor);
     std::vector<GPUTriangle> tris;
     objects->collectTriangles(tris);
 
     GLuint ssbo;
     glGenBuffers(1, &ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, tris.size() * sizeof(GPUTriangle), tris.data(), GL_STATIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, tris.size() * sizeof(GPUTriangle), tris.data(), GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+    size_t gpuCapacity = tris.size();
 
     GLint locTriCount = glGetUniformLocation(program, "triCount");
-    GLint locCamPos   = glGetUniformLocation(program, "camPos");
-    GLint locStart    = glGetUniformLocation(program, "startAngle");
-    GLint locStep     = glGetUniformLocation(program, "angleStep");
-    GLint locLen      = glGetUniformLocation(program, "rayLength");
+    GLint locCamPos = glGetUniformLocation(program, "camPos");
+    GLint locStart = glGetUniformLocation(program, "startAngle");
+    GLint locStep = glGetUniformLocation(program, "angleStep");
+    GLint locLen = glGetUniformLocation(program, "rayLength");
 
     int frameCount = 0;
+    const float movementSpeed = 1.f;
+    sf::Mouse::setPosition(sf::Vector2i(window.getSize().x / 2, window.getSize().y / 2), window);
+    sf::Vector2i oldMousePos = sf::Mouse::getPosition(window);
+    const float aimSensitivity = 0.2;
     while (window.isOpen())
     {
         while (const std::optional event = window.pollEvent())
@@ -524,10 +406,58 @@ int main()
             {
                 window.close();
             }
+            else if (const auto *keyPressed = event->getIf<sf::Event::KeyPressed>())
+            {
+                if (keyPressed->code == sf::Keyboard::Key::Escape)
+                {
+                    window.close();
+                }
+            }
+            else if (const auto *mouseButton = event->getIf<sf::Event::MouseButtonPressed>())
+            {
+                if (mouseButton->button == sf::Mouse::Button::Left)
+                {
+                    // Left mouse button clicked!
+                    // Get position: mouseButton->position.x, mouseButton->position.y
+                }
+            }
+        }
+        float dir = camera.getDirection().angle.theta;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
+        {
+            camera.move(-sin(dir * 0.0174533) * movementSpeed, cos(dir * 0.0174533), 0.f);
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
+        {
+            camera.move(sin(dir * 0.0174533) * movementSpeed, -cos(dir * 0.0174533), 0.f);
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
+        {
+            camera.move(cos(dir * 0.0174533) * movementSpeed, sin(dir * 0.0174533), 0.f);
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
+        {
+            camera.move(-cos(dir * 0.0174533) * movementSpeed, -sin(dir * 0.0174533), 0.f);
         }
         Ray start = camera.getTopRight();
         float thetaOffset = (camera.getTopLeft().angle.theta - camera.getTopRight().angle.theta) / screenWidth;
         float fiOffset = (camera.getBottomLeft().angle.fi - camera.getTopLeft().angle.fi) / screenHeight;
+
+        tris.clear();
+        objects->collectTriangles(tris);
+        // 3. Upload it
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+        if (tris.size() > gpuCapacity)
+        {
+            // scene grew: reallocate
+            glBufferData(GL_SHADER_STORAGE_BUFFER, tris.size() * sizeof(GPUTriangle), tris.data(), GL_DYNAMIC_DRAW);
+            gpuCapacity = tris.size();
+        }
+        else
+        {
+            // same size or smaller: overwrite in place
+            glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, tris.size() * sizeof(GPUTriangle), tris.data());
+        }
         Point cp = camera.getPosition();
         glUseProgram(program);
         glUniform1i(locTriCount, (GLint)tris.size());
@@ -551,13 +481,17 @@ int main()
         //     start.angle.fi = start.angle.fi + fiOffset;
         //     start.angle.theta = camera.getTopRight().angle.theta;
         // }
-        camera.changeDirection(1.f, 0);
-        //camera.setPosition(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z + 0.1);
+        // camera.changeDirection(1.f, 0);
 
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // window.draw(points);
-        // window.display();
-        window.resetGLStates();   // SFML caches GL state, so tell it we touched it
+        sf::Vector2i newMousePos = sf::Mouse::getPosition(window);
+        sf::Vector2i mouseOffset = newMousePos - oldMousePos;
+        camera.changeDirection(mouseOffset.x * aimSensitivity, mouseOffset.y * aimSensitivity);
+        sf::Mouse::setPosition(sf::Vector2i(window.getSize().x / 2, window.getSize().y / 2), window);
+        oldMousePos = sf::Vector2i(screenWidth / 2, screenHeight / 2);
+
+        //objects->move(0.2, 0.2, 0);
+
+        window.resetGLStates(); // SFML caches GL state, so tell it we touched it
         window.clear();
         window.draw(sprite);
         window.display();
@@ -582,9 +516,9 @@ int main()
 //     GroupedObject *obj1 = new GroupedObject();
 //     obj1->addObject(new Triangle(Point(10, 10, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Red));
 //     obj1->addObject(new Triangle(Point(20, 20, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Blue));
-//     GroupedObject *floor = new GroupedObject();
-//     floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(100, 0, 0), sf::Color::White));
-//     floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(0, 100, 0), sf::Color::White));
+// GroupedObject *floor = new GroupedObject();
+// floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(100, 0, 0), sf::Color::White));
+// floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(0, 100, 0), sf::Color::White));
 //     GroupedObject *allObjects = new GroupedObject();
 //     allObjects->addObject(obj1);
 //     allObjects->addObject(new Triangle(Point(10, 10, 15), Point(10, 20, 15), Point(20, 10, 15), sf::Color::Yellow));
