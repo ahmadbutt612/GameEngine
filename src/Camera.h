@@ -15,7 +15,8 @@ private:
 public:
     Camera();
     void setPosition(float a, float b, float c);
-    void move(float a, float b, float c);
+    void absMove(float a, float b, float c);
+    void relMove(Move m, float speed);
     void setViewDistance(float d);
     void setTopLeft(float t, float f);
     void setTopRight(float t, float f);
@@ -27,5 +28,6 @@ public:
     Ray getBottomRight();
     Ray getTopRight();
     Ray getTopLeft();
-    void changeDirection(float thetaOffset, float fiOffset);
+    void absChangeDirection(float thetaOffset, float fiOffset);
+    void relChangeDirection(Direction dir, float sensitivity);
 };

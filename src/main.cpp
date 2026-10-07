@@ -2,15 +2,13 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 #include <SFML/Window.hpp>
-#include <SFML/System.hpp>
 #include "types.h"
 #include "Camera.h"
-#include "Object.h"
 #include "Triangle.h"
 #include "GroupedObject.h"
-#include <vector>
 #include <cmath>
 #include <iostream>
+#include <vector>
 #include <fstream>
 #include <sstream>
 
@@ -230,12 +228,12 @@ int main()
     // }
 
     Camera camera;
-    camera.setPosition(0, 0, 5);
+    camera.setPosition(2, 2, 5);
     camera.setViewDistance(300);
-    camera.setTopLeft(92, 50);
-    camera.setTopRight(12, 50);
-    camera.setBottomLeft(92, 100);
-    camera.setBottomRight(12, 100);
+    camera.setTopLeft(102, 70);
+    camera.setTopRight(32, 70);
+    camera.setBottomLeft(102, 100);
+    camera.setBottomRight(32, 100);
 
     GroupedObject *objects = initWorld();
     GroupedObject *floor = new GroupedObject();
@@ -282,30 +280,28 @@ int main()
             {
                 if (mouseButton->button == sf::Mouse::Button::Left)
                 {
-                    // Left mouse button clicked!
-                    // Get position: mouseButton->position.x, mouseButton->position.y
+                    
                 }
             }
         }
-        float dir = camera.getDirection().angle.theta;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
         {
-            camera.move(-sin(dir * 0.0174533) * movementSpeed, cos(dir * 0.0174533), 0.f);
+            camera.relMove(Move::Right, movementSpeed);
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
         {
-            camera.move(sin(dir * 0.0174533) * movementSpeed, -cos(dir * 0.0174533), 0.f);
+            camera.relMove(Move::Left, movementSpeed);
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
         {
-            camera.move(cos(dir * 0.0174533) * movementSpeed, sin(dir * 0.0174533), 0.f);
+            camera.relMove(Move::Forward, movementSpeed);
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
         {
-            camera.move(-cos(dir * 0.0174533) * movementSpeed, -sin(dir * 0.0174533), 0.f);
+            camera.relMove(Move::Backward, movementSpeed);
         }
-        Ray start = camera.getTopRight();
-        float thetaOffset = (camera.getTopLeft().angle.theta - camera.getTopRight().angle.theta) / screenWidth;
+        Ray start = camera.getTopLeft();
+        float thetaOffset = (camera.getTopRight().angle.theta - camera.getTopLeft().angle.theta) / screenWidth;
         float fiOffset = (camera.getBottomLeft().angle.fi - camera.getTopLeft().angle.fi) / screenHeight;
 
         tris.clear();
@@ -350,7 +346,7 @@ int main()
 
         sf::Vector2i newMousePos = sf::Mouse::getPosition(window);
         sf::Vector2i mouseOffset = newMousePos - oldMousePos;
-        camera.changeDirection(mouseOffset.x * aimSensitivity, mouseOffset.y * aimSensitivity);
+        camera.absChangeDirection(-mouseOffset.x * aimSensitivity, mouseOffset.y * aimSensitivity);
         sf::Mouse::setPosition(sf::Vector2i(window.getSize().x / 2, window.getSize().y / 2), window);
         oldMousePos = sf::Vector2i(screenWidth / 2, screenHeight / 2);
 
@@ -368,25 +364,3 @@ int main()
     glDeleteProgram(program);
     return 0;
 }
-
-// GroupedObject *getBox(Point origin, float length, float width, float height)
-// {
-//     GroupedObject o1;
-//     //o1.addObject(new Triangle());
-//     return ;
-// }
-
-// GroupedObject *initWorld()
-// {
-//     GroupedObject *obj1 = new GroupedObject();
-//     obj1->addObject(new Triangle(Point(10, 10, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Red));
-//     obj1->addObject(new Triangle(Point(20, 20, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Blue));
-// GroupedObject *floor = new GroupedObject();
-// floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(100, 0, 0), sf::Color::White));
-// floor->addObject(new Triangle(Point(0, 0, 0), Point(100, 100, 0), Point(0, 100, 0), sf::Color::White));
-//     GroupedObject *allObjects = new GroupedObject();
-//     allObjects->addObject(obj1);
-//     allObjects->addObject(new Triangle(Point(10, 10, 15), Point(10, 20, 15), Point(20, 10, 15), sf::Color::Yellow));
-//     allObjects->addObject(floor);
-//     return allObjects;
-// }

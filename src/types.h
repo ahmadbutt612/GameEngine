@@ -1,6 +1,20 @@
 #pragma once
 #include <SFML/Graphics/Color.hpp>
 
+enum class Move 
+{
+    Forward,
+    Backward,
+    Left,
+    Right
+};
+enum class Direction
+{
+    Up,
+    Down,
+    Left,
+    Right
+};
 struct Point
 {
     float x;

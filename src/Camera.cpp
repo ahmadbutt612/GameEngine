@@ -1,4 +1,5 @@
 #include "Camera.h"
+#include <cmath>
 
 Camera::Camera()
 {
@@ -23,9 +24,29 @@ void Camera::setPosition(float a, float b, float c)
     direction.origin = Point(a, b, c);
 }
 
-void Camera::move(float a, float b, float c)
+void Camera::absMove(float a, float b, float c)
 {
     setPosition(position.x + a, position.y + b, position.z + c);
+}
+
+void Camera::relMove(Move m, float speed)
+{
+    float angle = getDirection().angle.theta;
+    switch (m)
+    {
+    case Move::Right:
+        absMove(sin(angle * 0.0174533) * speed, -cos(angle * 0.0174533) * speed, 0.f);
+        break;
+    case Move::Left:
+        absMove(-sin(angle * 0.0174533) * speed, cos(angle * 0.0174533) * speed, 0.f);
+        break;
+    case Move::Forward:
+        absMove(cos(angle * 0.0174533) * speed, sin(angle * 0.0174533) * speed, 0.f);
+        break;
+    case Move::Backward:
+        absMove(-cos(angle * 0.0174533) * speed, -sin(angle * 0.0174533) * speed, 0.f);
+        break;
+    }
 }
 
 void Camera::setViewDistance(float d)
@@ -98,7 +119,7 @@ Ray Camera::getTopLeft()
     return topLeft;
 }
 
-void Camera::changeDirection(float thetaOffset, float fiOffset)
+void Camera::absChangeDirection(float thetaOffset, float fiOffset)
 {
     topRight.angle.theta = topRight.angle.theta + thetaOffset;
     topLeft.angle.theta = topLeft.angle.theta + thetaOffset;
@@ -109,4 +130,23 @@ void Camera::changeDirection(float thetaOffset, float fiOffset)
     bottomRight.angle.fi = bottomRight.angle.fi + fiOffset;
     bottomLeft.angle.fi = bottomLeft.angle.fi + fiOffset;
     direction = Ray(position, Angle((topLeft.angle.theta + topRight.angle.theta) / 2, (bottomLeft.angle.fi + topLeft.angle.fi) / 2), viewDistance);
+}
+
+void Camera::relChangeDirection(Direction dir, float sensitivity)
+{
+    switch (dir)
+    {
+    case Direction::Right:
+        absChangeDirection(-sensitivity, 0.f);
+        break;
+    case Direction::Left:
+        absChangeDirection(sensitivity, 0.f);
+        break;
+    case Direction::Up:
+        absChangeDirection(0.f, -sensitivity);
+        break;
+    case Direction::Down:
+        absChangeDirection(0.f, sensitivity);
+        break;
+    }
 }
