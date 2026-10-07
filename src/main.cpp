@@ -5,6 +5,9 @@
 #include <SFML/System.hpp>
 #include "types.h"
 #include "Camera.h"
+#include "Object.h"
+#include "Triangle.h"
+#include "GroupedObject.h"
 #include <vector>
 #include <cmath>
 #include <iostream>
@@ -13,141 +16,6 @@
 
 const unsigned int screenWidth = 1280;
 const unsigned int screenHeight = 720;
-
-class Object
-{
-public:
-    virtual void move(float x, float y, float z) = 0;
-    virtual CollisionReturn getMinCollisionDistance(Ray r) = 0;
-    virtual void collectTriangles(std::vector<GPUTriangle> &out) = 0;
-    virtual ~Object() {}
-};
-
-struct Triangle : public Object
-{
-    Point p1;
-    Point p2;
-    Point p3;
-    sf::Color color;
-    void move(float x, float y, float z)
-    {
-        p1.x = p1.x + x;
-        p2.x = p2.x + x;
-        p3.x = p3.x + x;
-        p1.y = p1.y + y;
-        p2.y = p2.y + y;
-        p3.y = p3.y + y;
-        p1.z = p1.z + z;
-        p2.z = p2.z + z;
-        p3.z = p3.z + z;
-    }
-    Triangle(Point a, Point b, Point c, sf::Color col) : p1(a), p2(b), p3(c), color(col) {}
-    CollisionReturn getMinCollisionDistance(Ray r)
-    {
-        CollisionReturn cr;
-        cr.color = color;
-        float theta = r.angle.theta * 0.0174533;
-        float fi = r.angle.fi * 0.0174533;
-        Point vectorD;
-        vectorD.x = sin(fi) * cos(theta);
-        vectorD.y = sin(fi) * sin(theta);
-        vectorD.z = cos(fi);
-        Point vectorE1 = p2 - p1;
-        Point vectorE2 = p3 - p1;
-        Point vectorP;
-        vectorP.x = vectorD.y * vectorE2.z - vectorD.z * vectorE2.y;
-        vectorP.y = vectorD.z * vectorE2.x - vectorD.x * vectorE2.z;
-        vectorP.z = vectorD.x * vectorE2.y - vectorD.y * vectorE2.x;
-        float det = vectorE1.x * vectorP.x + vectorE1.y * vectorP.y + vectorE1.z * vectorP.z;
-        if (abs(det) < 0.000001)
-        {
-            cr.distance = r.length * 2;
-            cr.color = sf::Color::Black;
-            return cr;
-        }
-        Point T = r.origin - p1;
-        float u = (T.x * vectorP.x + T.y * vectorP.y + T.z * vectorP.z) / det;
-        if (u < 0 || u > 1)
-        {
-            cr.distance = r.length * 2;
-            cr.color = sf::Color::Black;
-            return cr;
-        }
-        Point vectorQ;
-        vectorQ.x = T.y * vectorE1.z - T.z * vectorE1.y;
-        vectorQ.y = T.z * vectorE1.x - T.x * vectorE1.z;
-        vectorQ.z = T.x * vectorE1.y - T.y * vectorE1.x;
-        float v = (vectorD.x * vectorQ.x + vectorD.y * vectorQ.y + vectorD.z * vectorQ.z) / det;
-        if (v < 0 || u + v > 1)
-        {
-            cr.distance = r.length * 2;
-            cr.color = sf::Color::Black;
-            return cr;
-        }
-        cr.distance = (vectorE2.x * vectorQ.x + vectorE2.y * vectorQ.y + vectorE2.z * vectorQ.z) / det;
-        return cr;
-    }
-    void collectTriangles(std::vector<GPUTriangle> &out) override
-    {
-        out.push_back({{p1.x, p1.y, p1.z, 0.f},
-                       {p2.x, p2.y, p2.z, 0.f},
-                       {p3.x, p3.y, p3.z, 0.f},
-                       {color.r / 255.f, color.g / 255.f, color.b / 255.f, 1.f}});
-    }
-};
-
-class GroupedObject : public Object
-{
-private:
-    std::vector<Object *> arr;
-public:
-    void addObject(Object *obj)
-    {
-        arr.push_back(obj);
-    }
-    void move(float x, float y, float z)
-    {
-        for (int i = 0; i < arr.size(); ++i)
-        {
-            arr[i]->move(x, y, z);
-        }
-    }
-    CollisionReturn getMinCollisionDistance(Ray r)
-    {
-        CollisionReturn minimum;
-        minimum.color = sf::Color::Black;
-        minimum.distance = r.length * 2;
-        for (int i = 0; i < arr.size(); ++i)
-        {
-            CollisionReturn val = arr[i]->getMinCollisionDistance(r);
-            if (val.distance < minimum.distance)
-            {
-                minimum = val;
-            }
-        }
-        return minimum;
-    }
-    void collectTriangles(std::vector<GPUTriangle> &out) override
-    {
-        for (int i = 0; i < arr.size(); ++i)
-        {
-            arr[i]->collectTriangles(out);
-        }
-    }
-    ~GroupedObject()
-    {
-        for (int i = 0; i < arr.size(); ++i)
-        {
-            delete arr[i];
-        }
-        arr.clear();
-    }
-};
-
-int getPixelIndex(int x, int y)
-{
-    return y * screenWidth + x;
-}
 
 std::string loadFile(const char *path)
 {
@@ -314,9 +182,6 @@ GroupedObject *initWorld()
 
     return allObjects;
 }
-
-GroupedObject *getRectangle(Point origin, float length, float width);
-// GroupedObject *initWorld();
 
 int main()
 {
