@@ -126,3 +126,16 @@ void CameraRenderer::render(GroupedObject &scene, Camera &camera)
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
     glUseProgram(0);
 }
+
+// for (int i = 0; i < screenHeight; ++i) INITIAL CPU LOGIC WITHOUT FLAT SCREEN RAY TRACING CALCULATIONS
+        // {
+        //     for (int j = 0; j < screenWidth; ++j)
+        //     {
+        //         CollisionReturn ret = objects->getMinCollisionDistance(start);
+        //         points[i * screenWidth + j].color = ret.color;
+        //         start.angle.theta = start.angle.theta + thetaOffset;
+        //     }
+        //     start.angle.fi = start.angle.fi + fiOffset;
+        //     start.angle.theta = camera.getTopRight().angle.theta;
+        // }
+        // camera.changeDirection(1.f, 0);

@@ -57,16 +57,6 @@ static void addCone(GroupedObject *g, float cx, float cy, float cz, float r,
 GroupedObject *initWorld()
 {
     GroupedObject *allObjects = new GroupedObject();
-
-    // // 0) Your original object (x 10-20, y 10-20)
-    // GroupedObject *obj1 = new GroupedObject();
-    // obj1->addObject(new Triangle(Point(10, 10, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Red));
-    // obj1->addObject(new Triangle(Point(20, 20, 10), Point(10, 20, 10), Point(20, 10, 10), sf::Color::Blue));
-    // GroupedObject *allObjects = new GroupedObject();
-    // allObjects->addObject(obj1);
-    // allObjects->addObject(new Triangle(Point(10, 10, 15), Point(10, 20, 15), Point(20, 10, 15), sf::Color::Yellow));
-    // allObjects->addObject(allObjects);
-
     // 1) Cube (x 30-36, y 10-16, z 10-16)
     GroupedObject *cube = new GroupedObject();
     addBox(cube, 30, 10, 10, 36, 16, 16,
@@ -171,18 +161,7 @@ int main()
         std::cerr << "Failed to load OpenGL functions\n";
         return 1;
     }
-    CameraRenderer renderer(sf::Vector2u(0, 0), sf::Vector2u(screenWidth/2, screenHeight), "raytrace.comp");
-    CameraRenderer renderer2(sf::Vector2u(screenWidth/2, 0), sf::Vector2u(screenWidth/2, screenHeight), "raytrace.comp");
-    // sf::VertexArray points(sf::PrimitiveType::Points, screenWidth * screenHeight);
-    // for (int i = 0; i < screenHeight; ++i)
-    // {
-    //     for (int j = 0; j < screenWidth; ++j)
-    //     {
-    //         points[i * screenWidth + j].position.x = j;
-    //         points[i * screenWidth + j].position.y = i;
-    //         points[i * screenWidth + j].color = sf::Color::Black;
-    //     }
-    // }
+    CameraRenderer renderer(sf::Vector2u(0, 0), sf::Vector2u(screenWidth, screenHeight), "raytrace.comp");
 
     Camera camera;
     camera.setPosition(2, 2, 5);
@@ -191,13 +170,6 @@ int main()
     camera.setTopRight(32, 70);
     camera.setBottomLeft(102, 100);
     camera.setBottomRight(32, 100);
-    Camera camera2;
-    camera2.setPosition(2, 2, 5);
-    camera2.setViewDistance(300);
-    camera2.setTopLeft(102, 70);
-    camera2.setTopRight(32, 70);
-    camera2.setBottomLeft(102, 100);
-    camera2.setBottomRight(32, 100);
 
     GroupedObject *objects = initWorld();
     GroupedObject *floor = new GroupedObject();
@@ -207,7 +179,7 @@ int main()
 
     int frameCount = 0;
     const float movementSpeed = 1.f;
-    sf::Mouse::setPosition(sf::Vector2i(window.getSize().x / 2, window.getSize().y / 2), window);
+    sf::Mouse::setPosition(sf::Vector2i(window.getSize().x, window.getSize().y), window);
     sf::Vector2i oldMousePos = sf::Mouse::getPosition(window);
     const float aimSensitivity = 0.2;
     while (window.isOpen())
@@ -250,19 +222,6 @@ int main()
         }
 
         renderer.render(*objects, camera);
-        renderer2.render(*objects, camera2);
-        // for (int i = 0; i < screenHeight; ++i)
-        // {
-        //     for (int j = 0; j < screenWidth; ++j)
-        //     {
-        //         CollisionReturn ret = objects->getMinCollisionDistance(start);
-        //         points[i * screenWidth + j].color = ret.color;
-        //         start.angle.theta = start.angle.theta + thetaOffset;
-        //     }
-        //     start.angle.fi = start.angle.fi + fiOffset;
-        //     start.angle.theta = camera.getTopRight().angle.theta;
-        // }
-        // camera.changeDirection(1.f, 0);
 
         sf::Vector2i newMousePos = sf::Mouse::getPosition(window);
         sf::Vector2i mouseOffset = newMousePos - oldMousePos;
@@ -270,12 +229,9 @@ int main()
         sf::Mouse::setPosition(sf::Vector2i(window.getSize().x / 2, window.getSize().y / 2), window);
         oldMousePos = sf::Vector2i(screenWidth / 2, screenHeight / 2);
 
-        //objects->move(0.2, 0.2, 0);
-
         window.resetGLStates(); // SFML caches GL state, so tell it we touched it
         window.clear();
         renderer.draw(window);
-        renderer2.draw(window);
         window.display();
         std::cout << ++frameCount << std::endl;
     }
