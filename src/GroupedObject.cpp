@@ -1,7 +1,7 @@
 #include "GroupedObject.h"
 #include "types.h" //because I am using CollisionReturn explicitly
 
-void GroupedObject::addObject(Object *obj)
+void GroupedObject::addObject(std::shared_ptr<Object> obj)
 {
     arr.push_back(obj);
 }
@@ -36,9 +36,5 @@ void GroupedObject::collectTriangles(std::vector<GPUTriangle> &out)
 }
 GroupedObject::~GroupedObject()
 {
-    for (int i = 0; i < arr.size(); ++i)
-    {
-        delete arr[i];
-    }
     arr.clear();
 }

@@ -13,6 +13,7 @@ void Triangle::move(float x, float y, float z)
     p2.z = p2.z + z;
     p3.z = p3.z + z;
 }
+Triangle::Triangle(): p1(Point(0, 0, 0)), p2(Point(0, 0, 0)), p3(Point(0, 0, 0)), color(sf::Color::Black) {}
 Triangle::Triangle(Point a, Point b, Point c, sf::Color col) : p1(a), p2(b), p3(c), color(col) {}
 CollisionReturn Triangle::getMinCollisionDistance(Ray r)
 {

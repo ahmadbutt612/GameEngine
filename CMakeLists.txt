@@ -8,7 +8,9 @@ set(SFML_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/SFML/lib/cmake/SFML")
 find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
 
 add_executable(3D_Game_Engine src/main.cpp src/glad.c src/Camera.cpp src/Triangle.cpp src/GroupedObject.cpp
-    src/CameraRenderer.cpp)
+    src/CameraRenderer.cpp
+    src/Quadrilateral.cpp
+    src/Box.cpp)
 target_include_directories(3D_Game_Engine PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/external/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"

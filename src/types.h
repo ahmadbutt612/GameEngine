@@ -31,6 +31,7 @@ struct Angle
 {
     float theta;
     float fi;
+    Angle(): theta(0), fi(0) {}
     Angle(float t, float f): theta(t), fi(f) {}
 };
 struct Ray
